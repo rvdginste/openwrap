@@ -118,6 +118,8 @@ namespace OpenWrap.Commands.Wrap
             }
             else if (Name != null)
             {
+                HostEnvironment.CurrentDirectoryRepository.RefreshPackages();
+                
                 // get latest version of the Named package
                 if (!HostEnvironment.CurrentDirectoryRepository.PackagesByName.Contains(Name))
                 {

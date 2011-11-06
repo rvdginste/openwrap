@@ -19,6 +19,7 @@ namespace OpenWrap.Build.Tasks
         public ITaskItem[] PdbFiles { get; set; }
         public ITaskItem[] CodeDocFiles { get; set; }
         public ITaskItem[] SatelliteAssemblies { get; set; }
+        public ITaskItem[] ContractReferenceAssemblies { get; set; }
         public ITaskItem[] SerializationAssemblies { get; set; }
         public ITaskItem[] SourceFiles { get; set; }
 
@@ -56,6 +57,7 @@ namespace OpenWrap.Build.Tasks
                     CodeDocFiles = Files(CodeDocFiles),
                     SatelliteAssemblies = Files(SatelliteAssemblies),
                     SerializationAssemblies = Files(SerializationAssemblies),
+                    ContractReferenceAssemblies = Files(ContractReferenceAssemblies),
                     OutputAssemblyFiles = Files(OutputAssemblyFiles),
                     IncludePdbFiles = IncludePdbFiles,
                     IncludeCodeDocFiles = IncludeCodeDocFiles,

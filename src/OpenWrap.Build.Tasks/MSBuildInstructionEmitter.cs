@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using OpenFileSystem.IO;
 
@@ -23,6 +24,7 @@ namespace OpenWrap.Build.Tasks
             CodeDocFiles = new List<string>();
             SatelliteAssemblies = new List<string>();
             SerializationAssemblies = new List<string>();
+            ContractReferenceAssemblies = new List<string>();
             OutputAssemblyFiles = new List<string>();
             IncludePdbFiles = true;
             IncludeCodeDocFiles = true;
@@ -39,6 +41,7 @@ namespace OpenWrap.Build.Tasks
         public ICollection<string> CodeDocFiles { get; set; }
         public ICollection<string> SatelliteAssemblies { get; set; }
         public ICollection<string> SerializationAssemblies { get; set; }
+        public ICollection<string> ContractReferenceAssemblies { get; set; }
 
         public ICollection<string> OutputAssemblyFiles { get; set; }
 
@@ -55,20 +58,21 @@ namespace OpenWrap.Build.Tasks
         IEnumerable<KeyValuePair<string, string>> GenerateInstructionsCore()
         {
             var baseDir = _fileSystem.GetDirectory(BasePath);
-            var openWrapRefs = OpenWrapReferenceFiles.ToList();
             var includedAssemblies = AllAssemblyReferenceFiles
-                .Where(x => !openWrapRefs.Contains(x))
+                .Where(x => !IsOpenWrapReferenceOrRelatedFile(x))
                 .Select(baseDir.GetFile)
                 .Concat(OutputAssemblyFiles.Select(baseDir.GetFile))
                 .Where(IsNetAssembly)
                 .ToList();
 
             foreach (var file in includedAssemblies)
+            {
                 yield return Key(ExportName, file.Path.FullPath);
+            }
 
             foreach (var content in ContentFiles)
             {
-                var relativePath = new Path(ExportName).Combine(new Path(content).MakeRelative(baseDir.Path).FullPath).DirectoryName;
+                var relativePath = new OpenFileSystem.IO.Path(ExportName).Combine(new OpenFileSystem.IO.Path(content).MakeRelative(baseDir.Path).FullPath).DirectoryName;
                 yield return Key(relativePath, baseDir.GetFile(content).Path.FullPath);
             }
             var associatedFiles = Enumerable.Empty<string>();
@@ -85,23 +89,38 @@ namespace OpenWrap.Build.Tasks
             {
                 foreach(var source in SourceFiles)
                 {
-                    var relativePath = new Path("source").Combine(new Path(source).MakeRelative(baseDir.Path).FullPath).DirectoryName;
+                    var relativePath = new OpenFileSystem.IO.Path("source").Combine(new OpenFileSystem.IO.Path(source).MakeRelative(baseDir.Path).FullPath).DirectoryName;
                     var file = baseDir.GetFile(source);
                     yield return Key(relativePath, file.Path.FullPath);
                 }
             }
             foreach (var satellite in SatelliteAssemblies)
             {
-                var relativePath = new Path(ExportName).Combine(new Path(satellite).MakeRelative(baseDir.Path).FullPath).DirectoryName;
                 var associatedFile = baseDir.GetFile(satellite);
-                if (ShouldIncludeRelatedFiles(includedAssemblies, associatedFile, x => RemoveSuffix(x, ".resources")))
+                IFile relatedFile = GetRelatedFile(includedAssemblies, associatedFile, x => RemoveSuffix(x, ".resources"));
+
+                if (relatedFile != null)
+                {
+                    var relativePath = new OpenFileSystem.IO.Path(ExportName).Combine(new OpenFileSystem.IO.Path(satellite).MakeRelative(relatedFile.Parent.Path).FullPath).DirectoryName;
                     yield return Key(relativePath, associatedFile.Path.FullPath);
+                }
             }
             foreach (var serializationAssemblyPath in SerializationAssemblies)
             {
                 var associatedFile = baseDir.GetFile(serializationAssemblyPath);
                 if (ShouldIncludeRelatedFiles(includedAssemblies, associatedFile, x => RemoveSuffix(x, ".XmlSerializers")))
                     yield return Key(ExportName, associatedFile.Path.FullPath);
+            }
+            foreach (var contractReferenceAssembly in ContractReferenceAssemblies)
+            {
+                var associatedFile = baseDir.GetFile(contractReferenceAssembly);
+                IFile relatedFile = GetRelatedFile(includedAssemblies, associatedFile, x => RemoveSuffix(x, ".Contracts"));
+
+                if (relatedFile != null)
+                {
+                    var relativePath = new OpenFileSystem.IO.Path(ExportName).Combine(new OpenFileSystem.IO.Path(contractReferenceAssembly).MakeRelative(relatedFile.Parent.Path).FullPath).DirectoryName;
+                    yield return Key(relativePath, associatedFile.Path.FullPath);
+                }
             }
         }
 
@@ -116,6 +135,31 @@ namespace OpenWrap.Build.Tasks
             return arg.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
                            ? arg.Substring(0, arg.Length - suffix.Length)
                            : null;
+        }
+
+        bool IsOpenWrapReferenceOrRelatedFile(string file)
+        {
+            if (OpenWrapReferenceFiles.Contains(file))
+            {
+                return true;
+            }
+
+            string baseFileName = System.IO.Path.GetFileNameWithoutExtension(file);
+            var suffices = new[] { ".Contracts", ".XmlSerializers", ".resources" };
+            baseFileName = suffices.Aggregate((string)null, (aggr, e) => aggr ?? RemoveSuffix(baseFileName, e)) ?? baseFileName;
+
+            return OpenWrapReferenceFiles
+                .Select(System.IO.Path.GetFileNameWithoutExtension)
+                .ContainsNoCase(baseFileName);
+        }
+
+        static IFile GetRelatedFile(IEnumerable<IFile> includedAssemblies, IFile file, Func<string, string> converter)
+        {
+            var converted = converter(file.NameWithoutExtension);
+
+            return converted == null
+                ? null
+                : includedAssemblies.SingleOrDefault(x => x.NameWithoutExtension.EqualsNoCase(converted));
         }
 
         static bool ShouldIncludeRelatedFiles(IEnumerable<IFile> includedAssemblies, IFile file, Func<string, string> converter)

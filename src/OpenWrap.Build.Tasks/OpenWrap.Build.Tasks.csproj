@@ -110,6 +110,7 @@
     </Content>
     <Content Include="OpenWrap.tasks">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
   </ItemGroup>
   <ItemGroup>

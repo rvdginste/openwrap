@@ -96,13 +96,18 @@
       <_OpenWrap-SerializationFiles Include="@(ReferenceCopyLocalPaths->'%(RootDir)%(Directory)%(Filename).resources.dll')" />
       <_OpenWrap-AllAssemblyReferenceFiles Include="@(ReferenceCopyLocalPaths->'%(FullPath)')" />
       <_OpenWrap-DeleteAnnoyingVsOptimizationFiles Include="$(IntermediateOutputPath)*.cache" />
-      <_OpenWrap-SourceFiles Include="@(Compile->'%(RootDir)%(Directory)%(Filename).%(FileExtension)')"/>
+      <_OpenWrap-SourceFiles Include="@(Compile->'%(RootDir)%(Directory)%(Filename)%(Extension)')"/>
     </ItemGroup>
     <PropertyGroup>
 
       <_OpenWrap-IsEntryPointProject Condition="'$(OpenWrap-CurrentProjectFile)' == '' or '$(OpenWrap-CurrentProjectFile)' == '$(MSBuildProjectDirectory)\$(MSBuildProjectFile)'">true</_OpenWrap-IsEntryPointProject>
 
     </PropertyGroup>
+	
+    <CreateItem Include="@(ContractReferenceAssemblyAbsolute)" Condition="Exists('%(FullPath)')">
+	   <Output ItemName="_OpenWrap-ContractReferenceAssemblies" TaskParameter="Include" />
+    </CreateItem>
+
     <PublishPackageContent
       Condition="'$(_OpenWrap-IsEntryPointProject)' == 'true'"
       IncludePdbFiles="$(OpenWrap-IncludePdbFiles)"
@@ -113,13 +118,14 @@
       ExportName="$(OpenWrap-ExportName)"
       AllowBinDuplicates="$(OpenWrap-AllowBinDuplicates)"
 
-      OutputAssemblyFiles="@(IntermediateAssembly->'%(FullPath)')"
+      OutputAssemblyFiles="@(IntermediateAssembly->'$(OutDir)%(Filename)%(Extension)')"
       ContentFiles="@(Content->'%(FullPath)')"
       AllAssemblyReferenceFiles="@(_OpenWrap-AllAssemblyReferenceFiles)"
       OpenWrapReferenceFiles="@(_OpenWrap-AssemblyReferences)"
       PdbFiles="@(_OpenWrap-PdbFiles)"
       CodeDocFiles="@(DocFileItem->'%(FullPath)')"
       SatelliteAssemblies="@(IntermediateSatelliteAssembliesWithTargetPath->'$(OutDir)%(Culture)\$(TargetName).resources.dll')"
+      ContractReferenceAssemblies="@(_OpenWrap-ContractReferenceAssemblies)"
       SerializationAssemblies="@(_OpenWrap-SerializationFiles)"
       SourceFiles="@(_OpenWrap-SourceFiles)"
       />
